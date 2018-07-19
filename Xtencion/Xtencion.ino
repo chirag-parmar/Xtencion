@@ -119,26 +119,30 @@ void loop(){
   // If intPin goes high, all data registers have new data
   // On interrupt, check if data ready interrupt
   if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
-  {  
+  { 
     myIMU.readAccelData(myIMU.accelCount);  // Read the x/y/z adc values
-    aX = myIMU.accelCount[0];
-    aY = myIMU.accelCount[1];
-    aZ = myIMU.accelCount[2];
+    myIMU.getAres();
+    
+    myIMU.ax = (float)myIMU.accelCount[0]*myIMU.aRes; // - accelBias[0];
+    myIMU.ay = (float)myIMU.accelCount[1]*myIMU.aRes; // - accelBias[1];
+    myIMU.az = (float)myIMU.accelCount[2]*myIMU.aRes; // - accelBias[2];
 
     myIMU.readGyroData(myIMU.gyroCount);  // Read the x/y/z adc values
-    gX = (float)myIMU.gyroCount[0];
-    gY = (float)myIMU.gyroCount[1];
-    gZ = (float)myIMU.gyroCount[2];
+    myIMU.getGres();
+
+    myIMU.gx = (float)myIMU.gyroCount[0]*myIMU.gRes;
+    myIMU.gy = (float)myIMU.gyroCount[1]*myIMU.gRes;
+    myIMU.gz = (float)myIMU.gyroCount[2]*myIMU.gRes;
 
   }
   adc0 = ads.readADC_SingleEnded(0);
   Serial.print("AIN0: "); Serial.println(adc0);
-  Serial.print("aX: "); Serial.println(aX);
-  Serial.print("aY: "); Serial.println(aY);
-  Serial.print("aZ: "); Serial.println(aZ);
-  Serial.print("gX: "); Serial.println(gX);
-  Serial.print("gY: "); Serial.println(gY);
-  Serial.print("gZ: "); Serial.println(gZ);
+  Serial.print("aX: "); Serial.println(myIMU.ax);
+  Serial.print("aY: "); Serial.println(myIMU.ay);
+  Serial.print("aZ: "); Serial.println(myIMU.az);
+  Serial.print("gX: "); Serial.println(myIMU.gx);
+  Serial.print("gY: "); Serial.println(myIMU.gy);
+  Serial.print("gZ: "); Serial.println(myIMU.gz);
   Serial.println(" ");
   delay(1000);
 }
