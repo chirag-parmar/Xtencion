@@ -1,9 +1,8 @@
 #include <Wire.h>
 #include "Kalman.h"
-#include "SSD1306Wire.h"
 #include <Adafruit_ADS1015.h>
 
-//#define RESTRICT_PITCH // Comment out to restrict roll to ±90deg instead - please read: http://www.freescale.com/files/sensors/doc/app_note/AN3461.pdf
+#define RESTRICT_PITCH // Comment out to restrict roll to ±90deg instead - please read: http://www.freescale.com/files/sensors/doc/app_note/AN3461.pdf
 
 //-----------------Create Kalman Instances-------------------------//
 Kalman kalmanX;
@@ -30,10 +29,8 @@ int16_t sharp_adc;
 float voltage;
 double distance;
 
-//----------------OLED Display variables and constants-----------//
-SSD1306Wire  display(0x3c, 0, 2);
-unsigned long displaytimer;
-//################################################ SETUP #####################################################//
+
+//###########################SETUP##################################//
 void setup() {
 
   //----------------------Communication Setup ----------------------//
@@ -84,15 +81,8 @@ void setup() {
 
   //-----------------------ADS 1115 Setup---------------------------//
   ads.begin();
-
-  //----------------------------------------------------------------//
-  display.init();
-  display.flipScreenVertically();
-  display.setFont(ArialMT_Plain_10);
-  displaytimer = millis();
 }
 
-//########################################## LOOP #########################################//
 void loop() {
   //-----------------------Read IMU data--------------------//
   while (i2cRead(IMUAddress, 0x3B, i2cData, 14));
@@ -186,16 +176,12 @@ void loop() {
     distance = 13*pow(voltage,-1);
     Serial.print(distance); Serial.print("\t");
 
-    printondisplay(roll, kalAngleX, pitch, kalAngleY, distance);
-
   Serial.print("\r\n");
   delay(2);
 }
 
-
-//################################################## HELPER FUNCTIONS ##############################################//
-
 //---------------------------I2C Communication Helper Functions-------------------------------//
+
 uint8_t i2cWrite(uint8_t DeviceAddress, uint8_t registerAddress, uint8_t data, bool sendStop) {
   return i2cWrite(DeviceAddress, registerAddress, &data, 1, sendStop); // Returns 0 on success
 }
@@ -238,31 +224,5 @@ uint8_t i2cRead(uint8_t DeviceAddress, uint8_t registerAddress, uint8_t *data, u
     }
   }
   return 0; // Success
-}
-
-//------------------------------------OLED display helper functions-----------------------------------//
-void printondisplay(double roll, double kalAngleX, double pitch, double kalAngleY, double distance){
-    if (millis() - displaytimer > 500){
-    display.clear();
-    display.setFont(ArialMT_Plain_10);
-    display.setTextAlignment(TEXT_ALIGN_LEFT);
-
-    String temp1_String = String(roll, 2);
-    String temp2_String = String(pitch, 2);
-    String rollpitchString = temp1_String + " " + temp2_String + "\n";
-
-    temp1_String = String(kalAngleX, 2);
-    temp2_String = String(kalAngleY, 2);
-    String kalmanString = temp1_String + " " + temp2_String + "\n";
-
-    temp1_String = String(distance, 2);
-    String distanceString = temp1_String + " cm" + "\n";
-    display.drawString(0, 10, rollpitchString);
-    display.drawString(0, 20, kalmanString);
-    display.drawString(0, 30, distanceString);
-    display.display();
-    
-    displaytimer = millis();
-    }
 }
 
