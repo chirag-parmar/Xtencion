@@ -29,6 +29,10 @@ Adafruit_ADS1115 ads;
 int16_t sharp_adc;
 float voltage;
 double distance;
+unsigned long distancetimer;
+const int num_samples = 21;
+int interval = 200;
+double dist_q[num_samples];
 
 //----------------OLED Display variables and constants-----------//
 SSD1306Wire  display(0x3c, 0, 2);
@@ -84,8 +88,11 @@ void setup() {
 
   //-----------------------ADS 1115 Setup---------------------------//
   ads.begin();
-
-  //----------------------------------------------------------------//
+  distancetimer = millis();
+  for (int i=0;i<num_samples;i++)
+  dist_q[i]=0.0;
+  
+  //-----------------------OLED Display Setup-----------------------//
   display.init();
   display.flipScreenVertically();
   display.setFont(ArialMT_Plain_10);
@@ -96,8 +103,8 @@ void setup() {
 void loop() {
   //-----------------------Read IMU data--------------------//
   while (i2cRead(IMUAddress, 0x3B, i2cData, 14));
-  accX = ((i2cData[0] << 8) | i2cData[1]);
-  accY = ((i2cData[2] << 8) | i2cData[3]);
+  accX = ((i2cData[0] << 8) | i2cData[1]) + 4000;
+  accY = ((i2cData[2] << 8) | i2cData[3]) + 3500;
   accZ = ((i2cData[4] << 8) | i2cData[5]);
   tempRaw = (i2cData[6] << 8) | i2cData[7];
   gyroX = (i2cData[8] << 8) | i2cData[9];
@@ -162,33 +169,90 @@ void loop() {
     gyroYangle = kalAngleY;
 
   //-------------------------Print Calculated Values----------------------------------//
-    Serial.print(roll); Serial.print("\t");
-    Serial.print(gyroXangle); Serial.print("\t");
-    Serial.print(compAngleX); Serial.print("\t");
-    Serial.print(kalAngleX); Serial.print("\t");
-
-    Serial.print("\t");
-
-    Serial.print(pitch); Serial.print("\t");
-    Serial.print(gyroYangle); Serial.print("\t");
-    Serial.print(compAngleY); Serial.print("\t");
-    Serial.print(kalAngleY); Serial.print("\t");
-
-    Serial.print("\t");
-
-    double temperature = (double)tempRaw / 340.0 + 36.53;
-    Serial.print(temperature); Serial.print("\t");
-
-    Serial.print("\t");
+//    Serial.print(accX); Serial.print("\t");
+//    Serial.print(accY); Serial.print("\t");
+//    Serial.print(accZ); Serial.print("\t");
+//
+//    Serial.print(roll); Serial.print("\t");
+//    Serial.print(gyroXangle); Serial.print("\t");
+//    Serial.print(compAngleX); Serial.print("\t");
+//    Serial.print(kalAngleX); Serial.print("\t");
+//
+//    Serial.print("\t");
+//
+//    Serial.print(pitch); Serial.print("\t");
+//    Serial.print(gyroYangle); Serial.print("\t");
+//    Serial.print(compAngleY); Serial.print("\t");
+//    Serial.print(kalAngleY); Serial.print("\t");
+//
+//    Serial.print("\t");
+//
+//    double temperature = (double)tempRaw / 340.0 + 36.53;
+//    Serial.print(temperature); Serial.print("\t");
+//
+//    Serial.print("\t");
+    
     
     sharp_adc = ads.readADC_SingleEnded(0);
     voltage = sharp_adc*0.1875/1000;
     distance = 13*pow(voltage,-1);
-    Serial.print(distance); Serial.print("\t");
+    if (((millis() - distancetimer) > interval) && distance > 4 && distance < 20){
+      for (int  i= (num_samples-1); i>0; i--){
+        dist_q[i] = dist_q[i-1];
+      }
+      dist_q[0] = distance;
+      Serial.print("[ ");
+      for (int i = (num_samples-1); i>= 0; i--){
+        Serial.print(dist_q[i]);
+        if (i!=0)Serial.print(", "); 
+      }
+      Serial.print(" ]");Serial.println("");
+      
+      double max = dist_q[0];
+      int max_pos = 0;
+      for (int i = 0; i < num_samples; i++)
+      {
+       if (dist_q[i] > max){
+          max = dist_q[i];
+          max_pos = i;
+       }
+      }
+      
+      double diff_forward = 0.0;
+      double diff_backward = 0.0;
+      Serial.print(diff_forward);Serial.print("\t");
+      Serial.print(diff_backward);Serial.print("\t");
+      //back swipe
+      for (int i=0; i<max_pos ; i++){
+        diff_backward += (dist_q[i+1] - dist_q[i]);
+      }
 
-    printondisplay(roll, kalAngleX, pitch, kalAngleY, distance);
+      //forward swipe
+      for (int i=max_pos; i<num_samples; i++){
+        diff_forward += (dist_q[i-1] - dist_q[i]);
+      }
 
-  Serial.print("\r\n");
+      if (diff_forward > 4 && diff_backward > 4 && diff_forward < 7 && diff_backward <7)
+        Serial.print("SHORT SWIPE SHORT SWIPE SHORT SWIPE SHORT SWIPE");
+      else if(diff_forward >= 10 && diff_backward >= 10 && diff_forward < 20 && diff_backward <20)
+        Serial.print("LONG SWIPE LONG SWIPE LONG SWIPE LONG SWIPE");
+        
+      distancetimer = millis();
+      Serial.print(distance);Serial.print("\t");
+      Serial.print(diff_forward);Serial.print("\t");
+      Serial.print(diff_backward);Serial.print("\t");
+      Serial.print(max);Serial.print("\t");
+      Serial.print(max_pos);Serial.println("");
+    }
+//    else{
+//      Serial.println(0);
+//    }
+    
+
+    
+    //printondisplay(roll, kalAngleX, pitch, kalAngleY, distance);
+    
+  //Serial.print("\r\n");
   delay(2);
 }
 
